@@ -1,0 +1,20 @@
+[vault]
+root = "C:/Users/ianfl/dev-vault"
+
+[types]
+enabled = ["decision","bug","pattern","context","runbook","session","concept"]
+
+[embeddings]
+provider = "ollama"
+model = "bge-m3"
+endpoint = "http://localhost:11434"
+
+[synthesis]
+model = "qwen3:7b"
+
+[limits]
+rate_calls = 30
+rate_window_seconds = 60
+lock_timeout_seconds = 5
+context_warning_pct = 35
+context_critical_pct = 50
