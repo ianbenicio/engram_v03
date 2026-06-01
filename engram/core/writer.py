@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 
+import yaml
 from ulid import ULID
 
 from engram.config import Config
@@ -69,3 +71,71 @@ def vault_save(note: NoteData, body: str, config: Config,
 
     return {"status": "ok", "note_id": data["id"], "path": str(target),
             "warnings": warnings}
+
+
+IMMUTABLE_FIELDS = {"id", "created", "type", "subtype", "parent"}
+
+
+def vault_update(note_id: str, updates: dict, body: str | None,
+                 config: Config, conn: sqlite3.Connection) -> dict:
+    row = conn.execute(
+        "SELECT file_path, content_hash FROM notes WHERE id = ?", (note_id,)
+    ).fetchone()
+    if not row:
+        return {"status": "error", "reason": f"Note {note_id} not found in index"}
+    file_path = Path(row[0])
+    if not file_path.exists():
+        return {"status": "error", "reason": f"Note file not found: {file_path}"}
+
+    blocked = [k for k in updates if k in IMMUTABLE_FIELDS]
+    if blocked:
+        return {"status": "error", "reason": f"Cannot modify immutable fields: {blocked}"}
+
+    text = file_path.read_text(encoding="utf-8")
+    if text.startswith("---"):
+        parts = text.split("---", 2)
+        fm = yaml.safe_load(parts[1]) if len(parts) >= 3 else {}
+        existing_body = parts[2].strip() if len(parts) >= 3 else text
+    else:
+        fm, existing_body = {}, text
+
+    warnings: list[str] = []
+    changes = []
+    for key, value in updates.items():
+        if fm.get(key) != value:
+            changes.append(f"{key}: {fm.get(key)} -> {value}")
+            fm[key] = value
+    fm["updated"] = datetime.now(timezone.utc).isoformat()
+
+    new_body = body if body is not None else existing_body
+
+    if "tags" in updates:
+        vocab = validator.load_tags_vocab(config.vault_root)
+        inv = validator.validate_tags(updates["tags"], vocab)
+        if inv:
+            return {"status": "error", "reason": f"Invalid tags: {inv}"}
+
+    content_hash = indexer.compute_hash(new_body) if body is not None else row[1]
+
+    if "related" in updates:
+        broken = validator.validate_wikilinks(updates["related"], conn,
+                                              config.vault_root)
+        if broken:
+            warnings.append(f"Broken wikilinks: {broken}")
+
+    markdown = fsio.format_markdown(fm, new_body)
+    lock_file = config.vault_root / ".engram.lock"
+    try:
+        with locking.vault_lock(lock_file, timeout=config.lock_timeout_seconds):
+            fsio.atomic_write(file_path, markdown)
+    except TimeoutError as e:
+        return {"status": "error", "reason": str(e)}
+
+    indexer.upsert_note(conn, fm, content_hash, str(file_path), new_body)
+    paths.log_activity(config.activity_log, "update", note_id,
+                       {"changes": changes, "body_changed": body is not None})
+
+    if not changes and body is None:
+        warnings.append("No changes detected")
+    return {"status": "ok", "note_id": note_id, "path": str(file_path),
+            "changes": changes, "warnings": warnings}
