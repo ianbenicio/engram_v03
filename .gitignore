@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+
+# Engram runtime
+*.engram.db
+.engram.lock
+.engram.db
+logs/
+
+# Local config (committed: engram.toml.example)
+engram.toml
+
+# Virtualenv
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
