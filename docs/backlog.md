@@ -107,3 +107,31 @@ core v3.0 is shipped and stable.
 2. BL-02 (cheap rerank) — builds on BL-01 scoring helpers.
 3. BL-03 (mining) — coverage; independent.
 4. BL-04 (benchmarks) — validate, once 1–3 land.
+
+---
+
+## Code-review follow-ups (from 2026-06-03 final review)
+
+Minor findings deferred after the critical embedding-on-save bug was fixed
+(commit `21ad813`). None blocking; logged for quality follow-through.
+
+- **CR-01 (robustness):** `indexer.upsert_note` hard-subscripts `note["title"]`,
+  `["type"]`, `["confidence"]`, `["created"]`, `["updated"]`. A note hand-edited
+  in Obsidian that drops one of these keys raises `KeyError` from
+  `vault_update`/`reindex_file` instead of a structured error. Add a
+  required-key guard that returns `{"status":"error"}` (or skips with a warning
+  during reindex).
+- **CR-02 (hub accuracy):** `hubs.hub_notes` counts inbound wikilinks by raw
+  `[[target]]` string matched against note `id`. Human-authored `[[Title]]`
+  links (not `[[id]]`) are silently dropped from centrality. Resolve link
+  targets through a title/path→id lookup before counting.
+- **CR-03 (spec gap §5.4 step 7):** `module` is stored but never validated
+  against the project `_index.md` declared modules (spec wanted a non-blocking
+  warning). Implement `validate_module` and surface as a warning in `vault_save`.
+- **CR-04 (cleanup):** drop the unused `import sqlite3` in `embeddings.py`
+  (added during the fix; harmless but lint-noise).
+
+Accepted (no action): FTS5 created as a normal table with `note_id UNINDEXED`
+rather than `content=''` contentless — internally consistent (manual
+DELETE+INSERT sync), so a deliberate deviation, not a bug. Clustering uses
+cosine-threshold connected components instead of Leiden (intentional, see §7).
