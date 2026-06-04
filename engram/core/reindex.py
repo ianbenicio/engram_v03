@@ -7,6 +7,7 @@ import yaml
 
 from engram.config import Config
 from engram.core import indexer
+from engram.core import embeddings
 
 
 def _parse(path: Path) -> tuple[dict, str]:
@@ -30,6 +31,7 @@ def reindex_file(conn: sqlite3.Connection, path: Path, config: Config) -> bool:
     if row and row[0] == new_hash:
         return False
     indexer.upsert_note(conn, fm, new_hash, str(path), body)
+    embeddings.embed_and_store(conn, fm["id"], f"{fm.get('title','')}\n{fm.get('tldr','')}\n{body}", config)
     return True
 
 

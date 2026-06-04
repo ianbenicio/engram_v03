@@ -8,6 +8,7 @@ from ulid import ULID
 
 from engram.config import Config
 from engram.core import indexer, fsio, paths
+from engram.core import embeddings
 
 
 def vault_handoff(state: dict, config: Config,
@@ -38,6 +39,7 @@ def vault_handoff(state: dict, config: Config,
     target = paths.target_path(config.vault_root, note)
     fsio.atomic_write(target, fsio.format_markdown(note, body))
     indexer.upsert_note(conn, note, indexer.compute_hash(body), str(target), body)
+    embeddings.embed_and_store(conn, note_id, f"{note['title']}\n{note['tldr']}\n{body}", config)
     paths.log_activity(config.activity_log, "handoff", note_id,
                        {"project": project})
     return {"status": "ok", "note_id": note_id, "path": str(target)}

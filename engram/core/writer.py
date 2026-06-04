@@ -10,6 +10,7 @@ from ulid import ULID
 from engram.config import Config
 from engram.models import NoteData
 from engram.core import indexer, validator, fsio, paths, locking
+from engram.core import embeddings
 
 
 def vault_save(note: NoteData, body: str, config: Config,
@@ -66,6 +67,7 @@ def vault_save(note: NoteData, body: str, config: Config,
         return {"status": "error", "reason": str(e)}
 
     indexer.upsert_note(conn, data, content_hash, str(target), body)
+    embeddings.embed_and_store(conn, data["id"], f"{data['title']}\n{data['tldr']}\n{body}", config)
     paths.log_activity(config.activity_log, "save", data["id"],
                        {"type": data["type"], "project": data.get("project")})
 
@@ -132,6 +134,7 @@ def vault_update(note_id: str, updates: dict, body: str | None,
         return {"status": "error", "reason": str(e)}
 
     indexer.upsert_note(conn, fm, content_hash, str(file_path), new_body)
+    embeddings.embed_and_store(conn, note_id, f"{fm.get('title','')}\n{fm.get('tldr','')}\n{new_body}", config)
     paths.log_activity(config.activity_log, "update", note_id,
                        {"changes": changes, "body_changed": body is not None})
 

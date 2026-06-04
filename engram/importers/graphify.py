@@ -8,6 +8,7 @@ from pathlib import Path
 
 from engram.config import Config
 from engram.core import indexer, fsio, paths
+from engram.core import embeddings
 
 CONFIDENCE_MAP = {
     "EXTRACTED": "fact",
@@ -54,6 +55,7 @@ def import_graph(graph_path: Path, project: str, config: Config,
         fsio.atomic_write(target, fsio.format_markdown(note, body))
         indexer.upsert_note(conn, note, indexer.compute_hash(body),
                             str(target), body)
+        embeddings.embed_and_store(conn, slug, f"{nid}\n{note['tldr']}\n{body}", config)
         created += 1
 
     paths.log_activity(config.activity_log, "graphify_import", project,
