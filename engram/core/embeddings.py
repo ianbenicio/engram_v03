@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
-
 import httpx
 
 from engram.config import Config
