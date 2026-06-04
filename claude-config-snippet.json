@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "engram": {
+      "command": "engram-server"
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "command": "python -m engram.hooks.pre_tool_use"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": "python -m engram.hooks.session_start"
+      }
+    ]
+  }
+}
