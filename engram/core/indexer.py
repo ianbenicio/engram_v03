@@ -11,6 +11,10 @@ def compute_hash(body: str) -> str:
 
 def upsert_note(conn: sqlite3.Connection, note: dict, content_hash: str,
                 file_path: str, body: str) -> None:
+    required = ("id", "title", "type", "confidence", "created", "updated")
+    missing = [k for k in required if k not in note]
+    if missing:
+        raise ValueError(f"upsert_note: note missing required keys: {missing}")
     tags = note.get("tags", [])
     conn.execute(
         """INSERT OR REPLACE INTO notes
