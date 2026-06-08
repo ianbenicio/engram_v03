@@ -43,3 +43,25 @@ def test_save_disabled_type_rejected(config, db):
     res = vault_save(_note(), "body unique 2", config, db)
     assert res["status"] == "error"
     assert "not enabled" in res["reason"].lower()
+
+def test_save_warns_unknown_module(config, db, vault):
+    idx = vault / "projetos" / "proj" / "_index.md"
+    idx.parent.mkdir(parents=True, exist_ok=True)
+    idx.write_text("---\nproject: proj\nmodules:\n  - auth\n  - billing\n---\n\nx",
+                   encoding="utf-8")
+    n = _note()
+    n.module = "nonexistent"
+    res = vault_save(n, "body for module warn", config, db)
+    assert res["status"] == "ok"
+    assert any("nonexistent" in w for w in res["warnings"])
+
+def test_save_no_warn_known_module(config, db, vault):
+    idx = vault / "projetos" / "proj" / "_index.md"
+    idx.parent.mkdir(parents=True, exist_ok=True)
+    idx.write_text("---\nproject: proj\nmodules:\n  - auth\n---\n\nx",
+                   encoding="utf-8")
+    n = _note()
+    n.module = "auth"
+    res = vault_save(n, "body known module", config, db)
+    assert res["status"] == "ok"
+    assert not any("not in project" in w for w in res["warnings"])
