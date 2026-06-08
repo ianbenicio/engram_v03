@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,25 @@ def _recency_factor(updated: str | None, halflife_days: int) -> float:
     if age_days < 0:
         age_days = 0.0
     return 0.5 ** (age_days / max(halflife_days, 1))
+
+
+def _keyword_overlap(query_text: str, *fields: str) -> float:
+    """Fraction of query tokens (len>=2) present in the given fields. [0,1]."""
+    tokens = {t for t in re.split(r"[^a-z0-9]+", query_text.lower()) if len(t) >= 2}
+    if not tokens:
+        return 0.0
+    hay = " ".join(f.lower() for f in fields if f)
+    return sum(1 for t in tokens if t in hay) / len(tokens)
+
+
+def _rerank_score(query_text: str, dist: float, title: str, tldr: str,
+                  updated: str | None, halflife_days: int) -> float:
+    """Cheap deterministic rerank: vector similarity + keyword overlap +
+    recency. Zero LLM. Returns a blended score (higher = better)."""
+    vec_sim = 1.0 / (1.0 + dist)
+    kw = _keyword_overlap(query_text, title, tldr)
+    rec = _recency_factor(updated, halflife_days)
+    return 0.5 * vec_sim + 0.3 * kw + 0.2 * rec
 
 
 def path_a(query: QueryRequest, conn: sqlite3.Connection,
@@ -114,13 +134,14 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
         res["fallback_used"] = True
         return res
 
+    knn_k = max(query.limit, 20) if config.rerank else max(query.limit, 7)
     rows = conn.execute(
         "SELECT v.note_id, v.distance, n.title, n.type, n.confidence, "
-        "n.file_path, n.confidentiality FROM notes_vec v "
+        "n.file_path, n.confidentiality, n.tldr, n.updated FROM notes_vec v "
         "JOIN notes n ON n.id = v.note_id "
         "WHERE v.embedding MATCH ? AND k = ? AND n.status != 'archived' "
         "ORDER BY v.distance",
-        (serialize_float32(qvec), max(query.limit, 7)),
+        (serialize_float32(qvec), knn_k),
     ).fetchall()
 
     if not rows:
@@ -130,8 +151,19 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
     safe = [r for r in rows if r[6] != "restricted"]
     restricted = len(rows) - len(safe)
 
+    # BL-02: cheap deterministic rerank (vec sim + keyword overlap + recency),
+    # zero LLM. Default off (config.rerank) -> pure KNN distance order.
+    if config.rerank and safe:
+        hl = config.recency_halflife_days
+        safe.sort(
+            key=lambda r: _rerank_score(query.text, r[1], r[2], r[7], r[8], hl),
+            reverse=True,
+        )
+
     bodies, sources = [], []
-    for note_id, dist, title, ntype, conf, fpath, _c in safe[:7]:
+    for row in safe[:7]:
+        note_id, dist, title, ntype, conf, fpath = (
+            row[0], row[1], row[2], row[3], row[4], row[5])
         sources.append({"id": note_id, "title": title, "type": ntype,
                         "confidence": conf,
                         "relevance": round(1.0 / (1.0 + dist), 3)})

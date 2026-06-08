@@ -23,3 +23,6 @@ context_critical_pct = 50
 # Path A recency boost (BL-01). recency_weight=0 disables (pure FTS rank).
 recency_weight = 0.2
 recency_halflife_days = 90
+# Path B cheap rerank (BL-02): vec sim + keyword overlap + recency, zero LLM.
+# Default off (pure KNN distance order).
+rerank = false
