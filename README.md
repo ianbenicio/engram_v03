@@ -41,6 +41,8 @@ engram reindex                        # incremental SQLite rebuild
 engram watch                          # auto-reindex on external edits
 engram import-graph graph.json proj   # import a Graphify graph
 engram cluster proj --threshold 0.75  # cluster notes -> _clusters.md
+engram mine ./src proj                # mine *.md/*.txt -> DRAFT notes (_mined/)
+engram mine ./convos proj --mode convos  # mine *.jsonl transcripts -> drafts
 ```
 
 ## Migrate an existing v2.2 vault

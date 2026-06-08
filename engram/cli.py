@@ -65,5 +65,19 @@ def cluster(project: str, threshold: float = 0.75):
     typer.echo(f"{res['num_clusters']} clusters → {res['path']}")
 
 
+@app.command()
+def mine(source: str, project: str, mode: str = "files"):
+    """Mine source files (mode=files: *.md/*.txt) or transcripts
+    (mode=convos: *.jsonl) into DRAFT notes under _mined/ for review."""
+    from engram.core import mining
+    config, conn = _load()
+    if mode == "convos":
+        res = mining.mine_convos(Path(source), project, config, conn)
+    else:
+        res = mining.mine_files(Path(source), project, config, conn)
+    typer.echo(f"Mined {res['created']} draft notes → {res['path']} "
+               f"(review, then promote via vault.update status→active).")
+
+
 if __name__ == "__main__":
     app()

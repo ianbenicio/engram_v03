@@ -62,7 +62,7 @@ re-score is in scope.
 
 ---
 
-## BL-03: Mining mode — retroactive import (MEDIUM)
+## BL-03: Mining mode — retroactive import (MEDIUM) — ✅ DONE (commit pending)
 
 **Why:** Engram captures knowledge on-the-fly during sessions. Mining lets a
 user backfill an existing vault or import past Claude Code transcripts/files
