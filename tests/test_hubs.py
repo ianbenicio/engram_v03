@@ -27,3 +27,18 @@ def test_hub_notes_ranked_by_inbound_links(db, vault):
     hubs = hub_notes(db, vault, top=5)
     assert hubs[0]["id"] == "n1"
     assert hubs[0]["inbound"] == 2
+
+
+def test_hub_notes_resolves_title_links(db, vault):
+    for nid, title in [("n1","Alpha"),("n2","Beta")]:
+        db.execute(
+            "INSERT INTO notes (id,title,tldr,type,confidence,scope,status,"
+            "created,updated,file_path,tags_json) VALUES "
+            "(?,?,?, 'decision','fact','project','active','c','u',?,?)",
+            (nid, title, "x", str(vault/f"{nid}.md"), "[]"))
+    (vault / "n2.md").write_text("---\nid: n2\nrelated: ['[[Alpha]]']\n---\n\nx",
+                                 encoding="utf-8")
+    db.commit()
+    hubs = hub_notes(db, vault, top=5)
+    assert hubs[0]["id"] == "n1"
+    assert hubs[0]["inbound"] == 1
