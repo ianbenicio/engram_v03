@@ -18,3 +18,8 @@ rate_window_seconds = 60
 lock_timeout_seconds = 5
 context_warning_pct = 35
 context_critical_pct = 50
+
+[retrieval]
+# Path A recency boost (BL-01). recency_weight=0 disables (pure FTS rank).
+recency_weight = 0.2
+recency_halflife_days = 90

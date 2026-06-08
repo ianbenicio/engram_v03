@@ -13,7 +13,7 @@ Rejected ideas and why:
 
 ---
 
-## BL-01: Hybrid retrieval — recency boost in Path A (HIGH)
+## BL-01: Hybrid retrieval — recency boost in Path A (HIGH) — ✅ DONE (commit 09a3f23)
 
 **Why:** Path A currently orders by FTS5 `rank` only. Adding a recency boost
 improves ranking quality deterministically (zero LLM), so the right notes
