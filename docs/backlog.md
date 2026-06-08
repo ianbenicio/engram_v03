@@ -37,7 +37,7 @@ reproduces current behavior (backward-compatible).
 
 ---
 
-## BL-02: Cheap embedding rerank in Path B (MEDIUM-LOW)
+## BL-02: Cheap embedding rerank in Path B (MEDIUM-LOW) — ✅ DONE (commit pending)
 
 **Why:** Path B orders by vector L2 distance from the KNN query. A rerank can
 tighten precision of the top-7 sent to synthesis (less irrelevant context →

@@ -30,6 +30,7 @@ class Config:
     context_critical_pct: int = 50
     recency_weight: float = 0.2
     recency_halflife_days: int = 90
+    rerank: bool = False
 
     @property
     def db_path(self) -> Path:
@@ -87,4 +88,5 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
         context_critical_pct=limits.get("context_critical_pct", 50),
         recency_weight=retrieval.get("recency_weight", 0.2),
         recency_halflife_days=retrieval.get("recency_halflife_days", 90),
+        rerank=retrieval.get("rerank", False),
     )
