@@ -74,7 +74,7 @@ def path_a(query: QueryRequest, conn: sqlite3.Connection,
     if query.status_filter:
         sql += " AND n.status = ?"; params.append(query.status_filter)
     else:
-        sql += " AND n.status != 'archived'"
+        sql += " AND n.status NOT IN ('archived','draft')"
     if query.type_filter:
         sql += " AND n.type = ?"; params.append(query.type_filter)
     if not query.include_cold:
@@ -139,7 +139,8 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
         "SELECT v.note_id, v.distance, n.title, n.type, n.confidence, "
         "n.file_path, n.confidentiality, n.tldr, n.updated FROM notes_vec v "
         "JOIN notes n ON n.id = v.note_id "
-        "WHERE v.embedding MATCH ? AND k = ? AND n.status != 'archived' "
+        "WHERE v.embedding MATCH ? AND k = ? "
+        "AND n.status NOT IN ('archived','draft') "
         "ORDER BY v.distance",
         (serialize_float32(qvec), knn_k),
     ).fetchall()
