@@ -28,6 +28,8 @@ class Config:
     lock_timeout_seconds: int = 5
     context_warning_pct: int = 35
     context_critical_pct: int = 50
+    recency_weight: float = 0.2
+    recency_halflife_days: int = 90
 
     @property
     def db_path(self) -> Path:
@@ -58,6 +60,7 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
     embeddings = data.get("embeddings", {})
     synthesis = data.get("synthesis", {})
     limits = data.get("limits", {})
+    retrieval = data.get("retrieval", {})
 
     env_root = os.environ.get("ENGRAM_VAULT_ROOT")
     if env_root:
@@ -82,4 +85,6 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
         lock_timeout_seconds=limits.get("lock_timeout_seconds", 5),
         context_warning_pct=limits.get("context_warning_pct", 35),
         context_critical_pct=limits.get("context_critical_pct", 50),
+        recency_weight=retrieval.get("recency_weight", 0.2),
+        recency_halflife_days=retrieval.get("recency_halflife_days", 90),
     )

@@ -40,7 +40,7 @@ def _query_impl(query: dict) -> dict:
     q = QueryRequest(**query)
     if router.route_query(q, _CONN) == "heavy":
         return reader.path_b(q, _CONN, _CONFIG)
-    return reader.path_a(q, _CONN)
+    return reader.path_a(q, _CONN, _CONFIG)
 
 
 def _deep_query_impl(query: dict) -> dict:
