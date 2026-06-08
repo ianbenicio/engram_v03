@@ -43,6 +43,11 @@ def vault_save(note: NoteData, body: str, config: Config,
         return {"status": "error", "reason": f"Invalid tags: {invalid}",
                 "valid_sample": sorted(vocab)[:30]}
 
+    mod_warn = validator.validate_module(data.get("module"), data.get("project"),
+                                         config.vault_root)
+    if mod_warn:
+        warnings.append(mod_warn)
+
     if len(data["tldr"].split()) > 20:
         warnings.append(f"TL;DR has {len(data['tldr'].split())} words (max 20)")
 

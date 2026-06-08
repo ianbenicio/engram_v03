@@ -66,3 +66,26 @@ def validate_wikilinks(related: list[str], conn: sqlite3.Connection,
         if not found:
             broken.append(link)
     return broken
+
+
+def validate_module(module: str | None, project: str | None,
+                    vault_root: Path) -> str | None:
+    """Check module is declared in project _index.md. Returns a warning
+    string if not declared, else None. Missing _index.md or module = no warning."""
+    if not module or not project:
+        return None
+    import yaml
+    idx = vault_root / "projetos" / project / "_index.md"
+    if not idx.exists():
+        return None
+    text = idx.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+    fm = yaml.safe_load(parts[1]) or {}
+    declared = fm.get("modules", [])
+    if declared and module not in declared:
+        return f"Module '{module}' not in project '{project}' declared modules: {declared}"
+    return None

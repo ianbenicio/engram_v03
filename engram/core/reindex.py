@@ -30,7 +30,10 @@ def reindex_file(conn: sqlite3.Connection, path: Path, config: Config) -> bool:
                        (fm["id"],)).fetchone()
     if row and row[0] == new_hash:
         return False
-    indexer.upsert_note(conn, fm, new_hash, str(path), body)
+    try:
+        indexer.upsert_note(conn, fm, new_hash, str(path), body)
+    except ValueError:
+        return False
     embeddings.embed_and_store(conn, fm["id"], f"{fm.get('title','')}\n{fm.get('tldr','')}\n{body}", config)
     return True
 

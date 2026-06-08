@@ -33,3 +33,12 @@ def test_check_duplicate(db):
     upsert_note(db, _note(), "hash123", "/v/n1.md", "body")
     assert check_duplicate(db, "hash123") is not None
     assert check_duplicate(db, "other") is None
+
+import pytest
+
+def test_upsert_missing_required_key_raises_valueerror(db):
+    bad = {"id": "x1", "title": "T", "type": "decision",
+           "created": "c", "updated": "u"}  # missing 'confidence'
+    with pytest.raises(ValueError) as exc:
+        upsert_note(db, bad, "h", "/v/x1.md", "body")
+    assert "confidence" in str(exc.value)

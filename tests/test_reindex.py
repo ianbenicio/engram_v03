@@ -20,6 +20,14 @@ def test_reindex_skips_unchanged(db, vault, config):
     reindex_file(db, p, config)
     assert reindex_file(db, p, config) is False
 
+def test_reindex_skips_malformed_note(db, vault, config):
+    p = vault / "projetos" / "proj" / "decisoes" / "bad.md"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    # missing 'confidence' → upsert raises ValueError → reindex_file returns False
+    p.write_text("---\nid: bad\ntitle: B\ntype: decision\n"
+                 "created: c\nupdated: u\n---\n\nbody", encoding="utf-8")
+    assert reindex_file(db, p, config) is False
+
 def test_reindex_all_counts(db, vault, config):
     _write_note(vault, "n1", "b1")
     _write_note(vault, "n2", "b2")
