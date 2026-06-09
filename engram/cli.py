@@ -66,6 +66,16 @@ def cluster(project: str, threshold: float = 0.75):
 
 
 @app.command()
+def moc(project: str):
+    """Generate a Map of Content (MOC-<project>.md) — an LLM/human entry point
+    listing hub notes + all active notes grouped by PARA bucket and type."""
+    from engram.core.moc import generate_moc
+    config, conn = _load()
+    res = generate_moc(conn, config, project)
+    typer.echo(f"MOC: {res['note_count']} notes, {res['hubs']} hubs -> {res['path']}")
+
+
+@app.command()
 def bench():
     """Run the retrieval benchmark (Path A/B Recall@5 + router accuracy)
     on an ephemeral seeded vault. Dev tool — does not touch the real vault."""

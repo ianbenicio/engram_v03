@@ -44,6 +44,7 @@ engram cluster proj --threshold 0.75  # cluster notes -> _clusters.md
 engram mine ./src proj                # mine *.md/*.txt -> DRAFT notes (_mined/)
 engram mine ./convos proj --mode convos  # mine *.jsonl transcripts -> drafts
 engram bench                          # retrieval benchmark (R@5 + router acc)
+engram moc proj                       # generate Map of Content (LLM entry point)
 ```
 
 ## Migrate an existing v2.2 vault

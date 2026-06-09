@@ -12,7 +12,7 @@ def _note():
 def test_save_writes_file_and_indexes(config, db, vault):
     res = vault_save(_note(), "Redis chosen for low latency.", config, db)
     assert res["status"] == "ok"
-    path = vault / "projetos" / "proj" / "decisoes" / f"{res['note_id']}.md"
+    path = vault / "projetos" / "proj" / "Resources" / "decisoes" / f"{res['note_id']}.md"
     assert path.exists()
     assert "confidence: fact" in path.read_text(encoding="utf-8")
     row = db.execute("SELECT title FROM notes WHERE id=?", (res["note_id"],)).fetchone()

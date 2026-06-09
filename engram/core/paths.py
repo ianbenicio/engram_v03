@@ -4,18 +4,25 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+# PARA buckets within each project (Projects = time-bound, Areas = ongoing,
+# Resources = permanent knowledge). Each maps type -> "{PARA}/{type-folder}".
+# Sessions stay at the vault-root `sessoes/` (cross-cutting session state, not
+# PARA project knowledge). Archive is reserved for the deferred cold-storage tier.
 TYPE_FOLDERS = {
-    "decision": "decisoes",
-    "bug": "bugs",
-    "pattern": "patterns",
-    "concept": "concepts",
-    "context": "context",
-    "runbook": "runbooks",
-    "post-mortem": "post-mortems",
-    "experiment": "experiments",
-    "refactoring": "refactoring",
-    "session": "sessoes",
-    "metric": "metrics",
+    # Resources/ — permanent knowledge
+    "decision": "Resources/decisoes",
+    "pattern": "Resources/patterns",
+    "concept": "Resources/concepts",
+    # Areas/ — ongoing
+    "context": "Areas/context",
+    "runbook": "Areas/runbooks",
+    "refactoring": "Areas/refactoring",
+    "metric": "Areas/metrics",
+    # Projects/ — time-bound
+    "bug": "Projects/bugs",
+    "post-mortem": "Projects/post-mortems",
+    "experiment": "Projects/experiments",
+    "session": "Projects/sessoes",
 }
 
 
