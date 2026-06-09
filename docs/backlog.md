@@ -85,7 +85,7 @@ drafts excluded from default Path A/B queries (status filter); promote flow.
 
 ---
 
-## BL-04: Benchmark suite (LOW / DEFER)
+## BL-04: Benchmark suite (LOW / DEFER) — ✅ DONE (commit pending)
 
 **Why:** No objective retrieval metric today. A benchmark (à la MemPalace's
 LongMemEval R@5) would validate the dual-path router objectively. This is
