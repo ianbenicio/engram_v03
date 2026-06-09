@@ -43,6 +43,7 @@ engram import-graph graph.json proj   # import a Graphify graph
 engram cluster proj --threshold 0.75  # cluster notes -> _clusters.md
 engram mine ./src proj                # mine *.md/*.txt -> DRAFT notes (_mined/)
 engram mine ./convos proj --mode convos  # mine *.jsonl transcripts -> drafts
+engram bench                          # retrieval benchmark (R@5 + router acc)
 ```
 
 ## Migrate an existing v2.2 vault

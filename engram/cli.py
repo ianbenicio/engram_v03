@@ -5,7 +5,7 @@ from pathlib import Path
 
 import typer
 
-from engram.config import load_config
+from engram.config import Config, load_config
 from engram.core.db import connect, init_schema
 
 app = typer.Typer(help="Engram — persistent dev memory")
@@ -63,6 +63,32 @@ def cluster(project: str, threshold: float = 0.75):
     config, conn = _load()
     res = cluster_notes(conn, config, project, threshold)
     typer.echo(f"{res['num_clusters']} clusters → {res['path']}")
+
+
+@app.command()
+def bench():
+    """Run the retrieval benchmark (Path A/B Recall@5 + router accuracy)
+    on an ephemeral seeded vault. Dev tool — does not touch the real vault."""
+    import json
+    import shutil
+    import tempfile
+    from engram.bench import run_bench
+    from engram.core.db import connect, init_schema
+
+    tmp = Path(tempfile.mkdtemp(prefix="engram-bench-"))
+    try:
+        (tmp / "meta").mkdir(parents=True)
+        (tmp / "meta" / "tags.md").write_text(
+            "- tipo/decision\n- maturidade/stable\n- dominio/backend\n",
+            encoding="utf-8")
+        cfg = Config(vault_root=tmp)
+        conn = connect(cfg.db_path)
+        init_schema(conn)
+        res = run_bench(cfg, conn)
+        conn.close()
+        typer.echo(json.dumps(res, indent=2))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 @app.command()
