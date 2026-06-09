@@ -29,24 +29,34 @@ def compute_flag(prev_tokens: int, increment: int, limit: int) -> dict:
 
 
 def main():
-    data = json.loads(sys.stdin.read() or "{}")
-    prev = 0
-    if FLAG_FILE.exists():
+    # A context-monitor hook must NEVER block a tool call. Any failure
+    # (malformed stdin, fs error, etc.) degrades to an empty no-op response.
+    try:
+        data = json.loads(sys.stdin.read() or "{}")
+        if not isinstance(data, dict):
+            data = {}
+        prev = 0
+        if FLAG_FILE.exists():
+            try:
+                prev = json.loads(FLAG_FILE.read_text()).get("tokens", 0)
+            except Exception:
+                prev = 0
+        inc = estimate_tokens(json.dumps(data.get("tool_input", {})))
+        flag = compute_flag(prev, inc, MODEL_LIMIT)
         try:
-            prev = json.loads(FLAG_FILE.read_text()).get("tokens", 0)
-        except Exception:
-            prev = 0
-    inc = estimate_tokens(json.dumps(data.get("tool_input", {})))
-    flag = compute_flag(prev, inc, MODEL_LIMIT)
-    FLAG_FILE.write_text(json.dumps(flag))
-    pct = flag["pct"]
-    if flag["threshold"] == "critical":
-        print(json.dumps({"additionalContext":
-              f"[CONTEXT CRITICAL: {pct:.0f}%] Initiate handoff NOW via vault.handoff()."}))
-    elif flag["threshold"] == "warning":
-        print(json.dumps({"additionalContext":
-              f"[CONTEXT WARNING: {pct:.0f}%] Be concise; prepare handoff."}))
-    else:
+            FLAG_FILE.write_text(json.dumps(flag))
+        except OSError:
+            pass
+        pct = flag["pct"]
+        if flag["threshold"] == "critical":
+            print(json.dumps({"additionalContext":
+                  f"[CONTEXT CRITICAL: {pct:.0f}%] Initiate handoff NOW via vault.handoff()."}))
+        elif flag["threshold"] == "warning":
+            print(json.dumps({"additionalContext":
+                  f"[CONTEXT WARNING: {pct:.0f}%] Be concise; prepare handoff."}))
+        else:
+            print(json.dumps({}))
+    except Exception:
         print(json.dumps({}))
 
 
