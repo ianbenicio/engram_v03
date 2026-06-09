@@ -42,9 +42,12 @@ class NoteData(BaseModel):
     related: list[str] = Field(default_factory=list)
     implements: list[str] | None = None
     supersedes: list[str] | None = None
+    superseded_by: list[str] | None = None
+    instance_of: str | None = None   # project instance -> global canonical (cross-project)
     code_refs: list[str] | None = None
     session_id: str | None = None
     confidentiality: str = "internal"
+    lifecycle: str | None = None     # decision ADR lifecycle: proposed|accepted|superseded|deprecated
     created: str | None = None
     updated: str | None = None
     schema_version: int = 1

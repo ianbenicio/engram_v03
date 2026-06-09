@@ -65,6 +65,16 @@ def cluster(project: str, threshold: float = 0.75):
     typer.echo(f"{res['num_clusters']} clusters → {res['path']}")
 
 
+@app.command("init-project")
+def init_project_cmd(project: str):
+    """Scaffold a project manifest (projetos/<project>/_index.md) with the
+    identity + technical-context + treatment-directive layers."""
+    from engram.core.manifest import scaffold_manifest
+    config, _ = _load()
+    res = scaffold_manifest(config.vault_root, project)
+    typer.echo(f"Manifest {res['status']}: {res['path']}")
+
+
 @app.command()
 def moc(project: str):
     """Generate a Map of Content (MOC-<project>.md) — an LLM/human entry point

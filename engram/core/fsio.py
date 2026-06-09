@@ -8,9 +8,10 @@ import yaml
 
 FRONTMATTER_ORDER = [
     "id", "title", "tldr", "type", "subtype", "parent", "confidence",
-    "scope", "project", "module", "status", "created", "updated", "author",
-    "tags", "related", "implements", "supersedes", "code_refs",
-    "session_id", "confidentiality", "schema_version",
+    "lifecycle", "scope", "project", "module", "status", "created", "updated",
+    "author", "tags", "related", "instance_of", "implements", "supersedes",
+    "superseded_by", "code_refs", "session_id", "confidentiality",
+    "schema_version",
 ]
 
 

@@ -10,13 +10,14 @@ from ulid import ULID
 from engram.config import Config
 from engram.models import NoteData
 from engram.core import indexer, validator, fsio, paths, locking
-from engram.core import embeddings
+from engram.core import embeddings, manifest
 
 
 def vault_save(note: NoteData, body: str, config: Config,
                conn: sqlite3.Connection) -> dict:
     data = note.model_dump(mode="json", exclude_none=False)
     warnings: list[str] = []
+    project = data.get("project")
 
     if not data.get("id"):
         data["id"] = str(ULID())
@@ -24,9 +25,19 @@ def vault_save(note: NoteData, body: str, config: Config,
     data["created"] = data.get("created") or now
     data["updated"] = now
 
-    if data["type"] not in config.enabled_types:
+    # Manifest directive: default_confidentiality (apply if note left the default)
+    if data.get("confidentiality", "internal") == "internal":
+        mdc = manifest.default_confidentiality(config.vault_root, project)
+        if mdc:
+            data["confidentiality"] = mdc
+
+    # Manifest directive: enabled_types (per-project override of global config)
+    eff_types = manifest.enabled_types(config.vault_root, project,
+                                       config.enabled_types)
+    if data["type"] not in eff_types:
         return {"status": "error",
-                "reason": f"Type '{data['type']}' not enabled in config"}
+                "reason": f"Type '{data['type']}' not enabled for project "
+                          f"'{project}' (enabled: {eff_types})"}
 
     missing = validator.validate_required_fields(data)
     if missing:
@@ -37,7 +48,10 @@ def vault_save(note: NoteData, body: str, config: Config,
         return {"status": "error",
                 "reason": f"Missing required tag prefix: {missing_prefix}"}
 
+    # Manifest directive: domains[] extend the dominio/ tag vocabulary
     vocab = validator.load_tags_vocab(config.vault_root)
+    for dom in manifest.domains(config.vault_root, project):
+        vocab.add(f"dominio/{dom}")
     invalid = validator.validate_tags(data["tags"], vocab)
     if invalid:
         return {"status": "error", "reason": f"Invalid tags: {invalid}",
@@ -50,6 +64,10 @@ def vault_save(note: NoteData, body: str, config: Config,
 
     if len(data["tldr"].split()) > 20:
         warnings.append(f"TL;DR has {len(data['tldr'].split())} words (max 20)")
+
+    lc_err = validator.validate_lifecycle(data)
+    if lc_err:
+        return {"status": "error", "reason": lc_err}
 
     content_hash = indexer.compute_hash(body)
     dup = indexer.check_duplicate(conn, content_hash)
