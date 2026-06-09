@@ -65,3 +65,20 @@ def test_save_no_warn_known_module(config, db, vault):
     res = vault_save(n, "body known module", config, db)
     assert res["status"] == "ok"
     assert not any("not in project" in w for w in res["warnings"])
+
+
+def test_save_decision_with_lifecycle(config, db, vault):
+    n = _note()
+    n.lifecycle = "accepted"
+    res = vault_save(n, "decision body with lifecycle", config, db)
+    assert res["status"] == "ok"
+    from engram.core.paths import target_path
+    p = target_path(vault, {"type":"decision","scope":"project","project":"proj","id":res["note_id"]})
+    assert "lifecycle: accepted" in p.read_text(encoding="utf-8")
+
+def test_save_invalid_lifecycle_rejected(config, db):
+    n = _note()
+    n.lifecycle = "nonsense"
+    res = vault_save(n, "body invalid lc", config, db)
+    assert res["status"] == "error"
+    assert "nonsense" in res["reason"]

@@ -41,3 +41,20 @@ def test_wikilinks_resolved_via_sqlite(db, vault):
     )
     db.commit()
     assert validate_wikilinks(["[[adr-1]]"], db, vault) == []
+
+
+from engram.core.validator import validate_lifecycle
+
+def test_lifecycle_valid_on_decision():
+    assert validate_lifecycle({"type": "decision", "lifecycle": "accepted"}) is None
+
+def test_lifecycle_invalid_value():
+    err = validate_lifecycle({"type": "decision", "lifecycle": "bogus"})
+    assert err is not None and "bogus" in err
+
+def test_lifecycle_rejected_on_non_decision():
+    err = validate_lifecycle({"type": "bug", "lifecycle": "accepted"})
+    assert err is not None and "decision" in err
+
+def test_lifecycle_absent_is_ok():
+    assert validate_lifecycle({"type": "bug"}) is None

@@ -8,6 +8,21 @@ REQUIRED_FIELDS = [
     "created", "updated", "author", "scope", "tags",
 ]
 
+VALID_LIFECYCLE = {"proposed", "accepted", "superseded", "deprecated"}
+
+
+def validate_lifecycle(note: dict) -> str | None:
+    """ADR lifecycle is only meaningful on decisions and, if present, must be a
+    known value. Returns an error string or None."""
+    lc = note.get("lifecycle")
+    if lc is None:
+        return None
+    if note.get("type") != "decision":
+        return f"lifecycle is only valid on 'decision' notes (got type '{note.get('type')}')"
+    if lc not in VALID_LIFECYCLE:
+        return f"Invalid lifecycle '{lc}'. Valid: {sorted(VALID_LIFECYCLE)}"
+    return None
+
 
 def load_tags_vocab(vault_root: Path) -> set[str]:
     vocab: set[str] = set()
