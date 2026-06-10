@@ -65,6 +65,17 @@ def cluster(project: str, threshold: float = 0.75):
     typer.echo(f"{res['num_clusters']} clusters → {res['path']}")
 
 
+@app.command()
+def gc(apply: bool = False):
+    """Garbage collect: detect exact-dups, stale, orphans, superseded.
+    Dry-run by default; --apply performs only AUTO-SAFE actions (never deletes)."""
+    import json
+    from engram.core.gc import run_gc
+    config, conn = _load()
+    res = run_gc(conn, config, apply=apply)
+    typer.echo(json.dumps(res, indent=2, ensure_ascii=False))
+
+
 @app.command("init-project")
 def init_project_cmd(project: str):
     """Scaffold a project manifest (projetos/<project>/_index.md) with the
