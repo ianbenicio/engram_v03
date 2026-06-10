@@ -4,8 +4,6 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ulid import ULID
-
 from engram.config import Config
 from engram.core import indexer, fsio, paths
 from engram.core import embeddings
@@ -13,9 +11,16 @@ from engram.core import embeddings
 
 def vault_handoff(state: dict, config: Config,
                   conn: sqlite3.Connection) -> dict:
-    note_id = str(ULID())
     now = datetime.now(timezone.utc).isoformat()
     project = state.get("project")
+    # Readable timestamped id (filename: handoff-{id}.md in Obsidian)
+    stamp = now[:16].replace(":", "").replace("T", "-")  # 2026-06-09-2210
+    base = f"{project}-{stamp}" if project else stamp
+    note_id = base
+    i = 2
+    while conn.execute("SELECT 1 FROM notes WHERE id = ?", (note_id,)).fetchone():
+        note_id = f"{base}-{i}"
+        i += 1
 
     body_lines = ["# Session Handoff", "", "## Open Decisions"]
     body_lines += [f"- {d}" for d in state.get("decisions", [])] or ["- (none)"]
