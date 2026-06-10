@@ -5,12 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-from ulid import ULID
 
 from engram.config import Config
 from engram.models import NoteData
 from engram.core import indexer, validator, fsio, paths, locking
-from engram.core import embeddings, manifest
+from engram.core import embeddings, manifest, naming
 
 
 def vault_save(note: NoteData, body: str, config: Config,
@@ -20,7 +19,9 @@ def vault_save(note: NoteData, body: str, config: Config,
     project = data.get("project")
 
     if not data.get("id"):
-        data["id"] = str(ULID())
+        # Readable slug id: doubles as filename + wikilink target, so it must
+        # be human-readable in Obsidian's graph (not an opaque ULID).
+        data["id"] = naming.unique_id(data.get("title", ""), body, conn)
     now = datetime.now(timezone.utc).isoformat()
     data["created"] = data.get("created") or now
     data["updated"] = now
