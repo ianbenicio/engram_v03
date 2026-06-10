@@ -45,6 +45,8 @@ engram mine ./src proj                # mine *.md/*.txt -> DRAFT notes (_mined/)
 engram mine ./convos proj --mode convos  # mine *.jsonl transcripts -> drafts
 engram bench                          # retrieval benchmark (R@5 + router acc)
 engram moc proj                       # generate Map of Content (LLM entry point)
+engram init-project proj              # scaffold project manifest (_index.md)
+engram gc                             # garbage collect (dry-run; --apply for AUTO-SAFE)
 ```
 
 ## Migrate an existing v2.2 vault
