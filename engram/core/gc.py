@@ -154,6 +154,13 @@ def run_gc(conn: sqlite3.Connection, config: Config, apply: bool = False) -> dic
         paths.log_activity(config.activity_log, "gc_apply", "-",
                            {"actions": len(actions)})
 
+    # REPORT-ONLY: cross-project comparative report (needs embeddings; graceful)
+    try:
+        from engram.core.crosslink import cross_project_report
+        cross_similar = cross_project_report(conn, config)
+    except Exception:
+        cross_similar = []
+
     total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
     active = conn.execute("SELECT COUNT(*) FROM notes WHERE status='active'").fetchone()[0]
 
@@ -164,7 +171,7 @@ def run_gc(conn: sqlite3.Connection, config: Config, apply: bool = False) -> dic
             "superseded": det["superseded"],
         },
         "suggest": {"stale": det["stale"]},
-        "report_only": {"orphan": det["orphan"]},
+        "report_only": {"orphan": det["orphan"], "cross_similar": cross_similar},
         "actions_taken": actions,
         "metrics": {"total_notes": total, "active_notes": active},
     }
