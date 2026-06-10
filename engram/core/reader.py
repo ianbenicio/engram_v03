@@ -9,7 +9,7 @@ from sqlite_vec import serialize_float32
 
 from engram.config import Config
 from engram.models import QueryRequest
-from engram.core import embeddings
+from engram.core import embeddings, usage
 from engram.core.embeddings import EmbeddingUnavailable
 
 
@@ -109,6 +109,16 @@ def path_a(query: QueryRequest, conn: sqlite3.Connection,
                         "tldr": tldr, "confidence": conf, "project": project})
         lines.append(f"[{ntype}|{conf}] {tldr}")
     summary = "\n".join(lines) if lines else "No matches found."
+
+    # Usage signal (reinforced retention): record which notes this query
+    # surfaced. Never fails the query.
+    if config and results:
+        try:
+            usage.log_retrieval(config.activity_log,
+                                [r["id"] for r in results], "A")
+        except OSError:
+            pass
+
     return {"path": "A", "results": results, "summary": summary,
             "match_count": len(results)}
 
@@ -182,6 +192,14 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
         a["summary"] = a["summary"] + f"\n\n--- Full notes (synth offline) ---\n\n{full}"
         a["fallback_used"] = True
         return a
+
+    # Usage signal (reinforced retention)
+    if sources:
+        try:
+            usage.log_retrieval(config.activity_log,
+                                [s["id"] for s in sources], "B")
+        except OSError:
+            pass
 
     result = {"path": "B", "synthesis": synthesis, "sources": sources,
               "fallback_used": False}

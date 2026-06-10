@@ -22,7 +22,7 @@ from pathlib import Path
 import yaml
 
 from engram.config import Config
-from engram.core import manifest, fsio, paths
+from engram.core import manifest, fsio, paths, usage
 from engram.core.hubs import WIKILINK_RE
 
 
@@ -103,6 +103,10 @@ def detect(conn: sqlite3.Connection, config: Config) -> dict:
     orphan: list[str] = []
     superseded: list[str] = []
 
+    # Reinforced retention (LSTM-style): a note still being retrieved is
+    # alive — recent access vetoes staleness regardless of note age.
+    acc = usage.access_stats(config.activity_log)
+
     for nid, chash, status, conf, updated, project, fpath in rows:
         if chash:
             by_hash.setdefault(chash, []).append((nid, inbound.get(nid, 0), updated))
@@ -115,7 +119,9 @@ def detect(conn: sqlite3.Connection, config: Config) -> dict:
             continue
         rp = manifest.retention_policy(config.vault_root, project)
         if refs == 0 and conf != "fact" and _age_days(updated) > rp["stale_days"]:
-            stale.append(nid)
+            last = usage.days_since_access(acc, nid)
+            if last is None or last > rp["stale_days"]:
+                stale.append(nid)
         if refs == 0 and not fm.get("related"):
             orphan.append(nid)
 

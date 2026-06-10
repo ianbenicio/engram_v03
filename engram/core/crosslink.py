@@ -27,6 +27,30 @@ def _active_embeddings(conn: sqlite3.Connection) -> list[tuple]:
             for nid, title, tldr, project, emb in rows]
 
 
+def find_similar(conn: sqlite3.Connection, note_id: str,
+                 threshold: float = 0.85, k: int = 4) -> list[dict]:
+    """Contextual catalog gate (save-time): find existing active notes similar
+    to `note_id`. Similar data is NOT bad — the same element can be wrong in
+    one context and perfect in another. So this never blocks: it surfaces the
+    similar notes so the writer can link them (related[]/instance_of) and
+    contextualize each use. Returns [] if the note has no embedding."""
+    row = conn.execute("SELECT embedding FROM notes_vec WHERE note_id = ?",
+                       (note_id,)).fetchone()
+    if not row:
+        return []
+    me = _deserialize(row[0])
+    out = []
+    for nid, title, tldr, project, vec in _active_embeddings(conn):
+        if nid == note_id:
+            continue
+        sim = _cosine(me, vec)
+        if sim >= threshold:
+            out.append({"id": nid, "title": title, "tldr": tldr,
+                        "project": project, "similarity": round(sim, 3)})
+    out.sort(key=lambda x: x["similarity"], reverse=True)
+    return out[:k]
+
+
 def cross_project_report(conn: sqlite3.Connection, config: Config,
                          threshold: float = 0.85) -> list[dict]:
     """Group active notes from DIFFERENT projects whose embeddings are similar

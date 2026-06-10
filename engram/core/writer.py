@@ -91,12 +91,29 @@ def vault_save(note: NoteData, body: str, config: Config,
         return {"status": "error", "reason": str(e)}
 
     indexer.upsert_note(conn, data, content_hash, str(target), body)
-    embeddings.embed_and_store(conn, data["id"], f"{data['title']}\n{data['tldr']}\n{body}", config)
+    embedded = embeddings.embed_and_store(
+        conn, data["id"], f"{data['title']}\n{data['tldr']}\n{body}", config)
     paths.log_activity(config.activity_log, "save", data["id"],
                        {"type": data["type"], "project": data.get("project")})
 
+    # Contextual catalog gate (never blocks): surface similar existing notes
+    # so the writer can link them (related[]/instance_of) and contextualize
+    # each distinct use of the same element.
+    similar: list[dict] = []
+    if embedded:
+        try:
+            from engram.core.crosslink import find_similar
+            similar = find_similar(conn, data["id"])
+        except Exception:
+            similar = []
+        if similar:
+            warnings.append(
+                "Similar notes exist — consider linking via related[]/"
+                "instance_of and contextualizing how this use differs: "
+                + ", ".join(f"[[{s['id']}]] ({s['similarity']})" for s in similar))
+
     return {"status": "ok", "note_id": data["id"], "path": str(target),
-            "warnings": warnings}
+            "warnings": warnings, "similar_notes": similar}
 
 
 IMMUTABLE_FIELDS = {"id", "created", "type", "subtype", "parent"}
