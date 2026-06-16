@@ -9,15 +9,30 @@ from engram.core import reader, router, hubs, handoff
 from engram.core.writer import vault_save, vault_update
 from engram.models import NoteData, QueryRequest
 
-_CONFIG = load_config()
-_CONN = connect(_CONFIG.db_path)
-init_schema(_CONN)
-_RATE = RateLimiter(_CONFIG.rate_calls, _CONFIG.rate_window_seconds)
+# Lazy globals: config/DB are initialized on first tool use (not at import),
+# so editing engram.toml takes effect on the next server start without
+# import-time side effects, and importing this module stays cheap.
+_CONFIG = None
+_CONN = None
+_RATE = RateLimiter()
 
 mcp = FastMCP("Engram")
 
 
+def _ensure() -> None:
+    """Initialize config/conn on first use. No-op if already set (tests
+    inject _CONFIG/_CONN directly)."""
+    global _CONFIG, _CONN, _RATE
+    if _CONFIG is None:
+        _CONFIG = load_config()
+        _RATE = RateLimiter(_CONFIG.rate_calls, _CONFIG.rate_window_seconds)
+    if _CONN is None:
+        _CONN = connect(_CONFIG.db_path)
+        init_schema(_CONN)
+
+
 def _rl(tool: str) -> dict | None:
+    _ensure()
     if not _RATE.allow(tool):
         return {"status": "error", "reason": f"Rate limit exceeded for {tool}"}
     return None
@@ -78,15 +93,20 @@ def vault_update_tool(note_id: str, updates: dict, body: str | None = None) -> d
 
 
 @mcp.tool()
-def vault_query_tool(query: dict) -> dict:
-    """Query the vault (router auto-selects lightweight vs heavy)."""
-    return _query_impl(query)
+def vault_query_tool(query: QueryRequest) -> dict:
+    """Query the vault (router auto-selects lightweight vs heavy).
+
+    Fields: text (required), project, projects, tags, type_filter,
+    status_filter, depth ('deep' forces semantic), limit (default 10)."""
+    return _query_impl(query.model_dump(exclude_none=True))
 
 
 @mcp.tool()
-def vault_deep_query_tool(query: dict) -> dict:
-    """Force a heavy semantic query (embeddings + synthesis)."""
-    return _deep_query_impl(query)
+def vault_deep_query_tool(query: QueryRequest) -> dict:
+    """Force a heavy semantic query (embeddings + synthesis).
+
+    Fields: text (required), project, projects, limit (default 10)."""
+    return _deep_query_impl(query.model_dump(exclude_none=True))
 
 
 @mcp.tool()

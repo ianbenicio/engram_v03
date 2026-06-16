@@ -22,7 +22,7 @@ from pathlib import Path
 import yaml
 
 from engram.config import Config
-from engram.core import manifest, fsio, paths, usage
+from engram.core import manifest, fsio, locking, paths, usage
 from engram.core.hubs import WIKILINK_RE
 
 
@@ -71,19 +71,27 @@ def _frontmatter(path: Path) -> dict:
 
 def _archive(conn: sqlite3.Connection, config: Config, note_id: str,
              file_path: str) -> bool:
-    """Set status: archived in the file + SQLite. Never deletes."""
+    """Set status: archived in the file + SQLite. Never deletes.
+
+    File rewrite happens under the vault lock (same invariant as the writer)
+    to avoid racing Obsidian/concurrent writers."""
     p = Path(file_path)
     if not p.exists():
         conn.execute("UPDATE notes SET status='archived' WHERE id=?", (note_id,))
         conn.commit()
         return True
-    text = p.read_text(encoding="utf-8")
-    if text.startswith("---"):
-        parts = text.split("---", 2)
-        fm = yaml.safe_load(parts[1]) or {}
-        body = parts[2].lstrip("\n") if len(parts) >= 3 else ""
-        fm["status"] = "archived"
-        fsio.atomic_write(p, fsio.format_markdown(fm, body.rstrip("\n")))
+    lock_file = config.vault_root / ".engram.lock"
+    try:
+        with locking.vault_lock(lock_file, timeout=config.lock_timeout_seconds):
+            text = p.read_text(encoding="utf-8")
+            if text.startswith("---"):
+                parts = text.split("---", 2)
+                fm = yaml.safe_load(parts[1]) or {}
+                body = parts[2].lstrip("\n") if len(parts) >= 3 else ""
+                fm["status"] = "archived"
+                fsio.atomic_write(p, fsio.format_markdown(fm, body.rstrip("\n")))
+    except TimeoutError:
+        return False  # skip this note; next gc run retries
     conn.execute("UPDATE notes SET status='archived' WHERE id=?", (note_id,))
     conn.commit()
     return True

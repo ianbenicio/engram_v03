@@ -16,13 +16,11 @@ from pathlib import Path
 from engram.config import Config
 from engram.core.hubs import hub_notes
 
-# type -> PARA bucket (mirrors paths.TYPE_FOLDERS grouping)
-BUCKET = {
-    "decision": "Resources", "pattern": "Resources", "concept": "Resources",
-    "context": "Areas", "runbook": "Areas", "refactoring": "Areas", "metric": "Areas",
-    "bug": "Projects", "post-mortem": "Projects", "experiment": "Projects",
-    "session": "Projects",
-}
+# type -> PARA bucket, DERIVED from paths.TYPE_FOLDERS (single source of truth;
+# the bucket is the first path segment, e.g. "Resources/decisoes" -> "Resources").
+from engram.core.paths import TYPE_FOLDERS
+
+BUCKET = {t: folder.split("/")[0] for t, folder in TYPE_FOLDERS.items()}
 BUCKET_ORDER = ["Resources", "Areas", "Projects", "Other"]
 
 
