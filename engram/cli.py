@@ -29,6 +29,52 @@ def status():
 
 
 @app.command()
+def save(
+    note_file: str = typer.Argument(
+        ..., help="Markdown note with YAML frontmatter (or '-' for stdin). "
+        "Frontmatter carries the fields (title, tldr, type, confidence, "
+        "project, tags, ...); the body after the closing --- is the content."),
+    author: str = typer.Option(
+        "codex", help="Note author. Defaults to 'codex' since this CLI is the "
+        "agent-agnostic write path (no MCP client required)."),
+):
+    """Save a note from a markdown file — agent-agnostic write path (no MCP).
+    Any shell-capable agent (Codex, scripts, cron) can write to the vault.
+    Prints the JSON result; non-zero exit on error."""
+    import sys
+    import yaml
+    from engram.models import NoteData
+    from engram.core.writer import vault_save
+
+    raw = (sys.stdin.read() if note_file == "-"
+           else Path(note_file).read_text(encoding="utf-8"))
+    if not raw.lstrip().startswith("---"):
+        typer.echo(json.dumps({"status": "error",
+                   "reason": "Note must start with YAML frontmatter (---)"}))
+        raise typer.Exit(1)
+    parts = raw.split("---", 2)
+    if len(parts) < 3:
+        typer.echo(json.dumps({"status": "error",
+                   "reason": "Malformed frontmatter (need opening and closing ---)"}))
+        raise typer.Exit(1)
+    fm = yaml.safe_load(parts[1]) or {}
+    body = parts[2].strip()
+    fm.setdefault("author", author)
+
+    config, conn = _load()
+    try:
+        note = NoteData(**fm)
+    except Exception as e:
+        typer.echo(json.dumps({"status": "error",
+                   "reason": f"Invalid note fields: {e}"}))
+        raise typer.Exit(1)
+    res = vault_save(note, body, config, conn)
+    typer.echo(json.dumps(res, indent=2, ensure_ascii=False))
+    if res.get("status") != "ok":
+        raise typer.Exit(1)
+
+
+@app.command()
 def reindex():
     """Rebuild SQLite index (incremental, hash-skipped)."""
     from engram.core.reindex import reindex_all
