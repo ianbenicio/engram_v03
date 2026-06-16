@@ -31,8 +31,17 @@ def has_semantic_intent(text: str) -> bool:
     return any(re.search(p, text, re.IGNORECASE) for p in SEMANTIC_PATTERNS)
 
 
+def fts_query(text: str) -> str:
+    """Build a safe FTS5 MATCH string: quote each whitespace-separated term so
+    operator characters inside a term (-, :, *, parens, OR/AND/NEAR) are treated
+    literally. Without this, a hyphenated tech term like 'claude-mem' or
+    'qwen3-coder' makes FTS5 raise OperationalError ('no such column: ...'),
+    which callers swallow into an empty result — silent zero-hit queries."""
+    return " ".join('"' + t.replace('"', '""') + '"' for t in text.split())
+
+
 def fts_count(text: str, project: str | None, conn: sqlite3.Connection) -> int:
-    safe = text.replace('"', '""')
+    safe = fts_query(text)
     try:
         if project:
             return conn.execute(
