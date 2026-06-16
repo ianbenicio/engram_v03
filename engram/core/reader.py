@@ -9,7 +9,7 @@ from sqlite_vec import serialize_float32
 
 from engram.config import Config
 from engram.models import QueryRequest
-from engram.core import embeddings, usage
+from engram.core import embeddings, usage, router
 from engram.core.embeddings import EmbeddingUnavailable
 
 
@@ -62,7 +62,7 @@ def path_a(query: QueryRequest, conn: sqlite3.Connection,
     halflife = config.recency_halflife_days if config else 90
     use_recency = recency_weight > 0
 
-    safe = query.text.replace('"', '""')
+    safe = router.fts_query(query.text)
     sql = (
         "SELECT n.id,n.type,n.title,n.tldr,n.status,n.project,n.updated,"
         "n.confidence, f.rank FROM notes_fts f JOIN notes n ON f.note_id = n.id "

@@ -31,3 +31,10 @@ def test_has_semantic_intent_bilingual():
     assert has_semantic_intent("comparar duas opcoes")
     assert has_semantic_intent("compare two options")
     assert not has_semantic_intent("redis timeout value")
+
+def test_fts_query_quotes_each_term():
+    from engram.core.router import fts_query
+    # Hyphenated terms must be quoted so FTS5 treats '-' literally (no operator).
+    assert fts_query("claude-mem token") == '"claude-mem" "token"'
+    assert fts_query("radar") == '"radar"'
+    assert fts_query("") == ""
