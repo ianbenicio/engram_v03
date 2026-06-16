@@ -31,6 +31,12 @@ class Config:
     recency_weight: float = 0.2
     recency_halflife_days: int = 90
     rerank: bool = False
+    # Synthesis model cold-load (e.g. qwen3-coder) can exceed 50s on first
+    # call; the old 30s timeout spuriously failed every first semantic query.
+    synth_timeout_seconds: int = 120
+    # Keep Ollama models resident so repeat queries skip cold-load (~4s warm
+    # vs ~58s cold). Passed to Ollama as `keep_alive`.
+    keep_alive: str = "30m"
 
     @property
     def db_path(self) -> Path:
@@ -89,4 +95,6 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
         recency_weight=retrieval.get("recency_weight", 0.2),
         recency_halflife_days=retrieval.get("recency_halflife_days", 90),
         rerank=retrieval.get("rerank", False),
+        synth_timeout_seconds=synthesis.get("timeout_seconds", 120),
+        keep_alive=synthesis.get("keep_alive", "30m"),
     )

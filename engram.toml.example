@@ -10,7 +10,14 @@ model = "bge-m3"
 endpoint = "http://localhost:11434"
 
 [synthesis]
-model = "qwen3:7b"
+# Path B summary model. Use a fast model: large coder models (e.g.
+# qwen3-coder) cold-load >50s and exceed timeouts on real context.
+model = "qwen2.5-coder:7b"
+# Cold-load safety. First semantic query after model unload is slow; a low
+# timeout spuriously falls back to raw notes. Default 120.
+timeout_seconds = 120
+# Keep Ollama models resident between queries (~4s warm vs ~58s cold).
+keep_alive = "30m"
 
 [limits]
 rate_calls = 30

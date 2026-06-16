@@ -32,4 +32,19 @@ def test_defaults_present(monkeypatch, tmp_path):
     assert cfg.ollama_endpoint == "http://localhost:11434"
     assert cfg.embed_model == "bge-m3"
     assert cfg.synth_model == "qwen3:7b"
+    assert cfg.synth_timeout_seconds == 120
+    assert cfg.keep_alive == "30m"
     assert "decision" in cfg.enabled_types
+
+
+def test_synthesis_tuning_from_toml(tmp_path):
+    toml = tmp_path / "engram.toml"
+    toml.write_text(
+        '[vault]\nroot = "%s"\n[synthesis]\nmodel = "qwen2.5-coder:7b"\n'
+        'timeout_seconds = 200\nkeep_alive = "1h"\n'
+        % (tmp_path / "v").as_posix()
+    )
+    cfg = load_config(config_path=toml, home=tmp_path)
+    assert cfg.synth_model == "qwen2.5-coder:7b"
+    assert cfg.synth_timeout_seconds == 200
+    assert cfg.keep_alive == "1h"
