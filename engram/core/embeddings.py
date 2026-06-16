@@ -13,8 +13,9 @@ def get_embedding(text: str, config: Config) -> list[float]:
     try:
         resp = httpx.post(
             f"{config.ollama_endpoint}/api/embeddings",
-            json={"model": config.embed_model, "prompt": text},
-            timeout=10,
+            json={"model": config.embed_model, "prompt": text,
+                  "keep_alive": config.keep_alive},
+            timeout=30,
         )
         if resp.status_code == 200:
             return resp.json()["embedding"]
@@ -53,8 +54,9 @@ def synthesize(query: str, context: str, config: Config) -> str:
         resp = httpx.post(
             f"{config.ollama_endpoint}/api/generate",
             json={"model": config.synth_model, "prompt": prompt,
-                  "stream": False, "options": {"num_predict": 600}},
-            timeout=30,
+                  "stream": False, "keep_alive": config.keep_alive,
+                  "options": {"num_predict": 600}},
+            timeout=config.synth_timeout_seconds,
         )
         if resp.status_code == 200:
             return resp.json()["response"]

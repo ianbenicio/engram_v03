@@ -186,12 +186,18 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
     try:
         synthesis = embeddings.synthesize(query.text, combined, config)
     except EmbeddingUnavailable:
-        a = path_a(query, conn, config)
+        # Synthesis (LLM) offline but vector retrieval succeeded: return the
+        # KNN-matched notes raw instead of re-running FTS, which often matches
+        # nothing for a natural-language query and would mislead with
+        # match_count 0 despite relevant notes being found.
+        results = [{"id": r[0], "type": r[3], "title": r[2],
+                    "confidence": r[4],
+                    "relevance": round(1.0 / (1.0 + r[1]), 3)}
+                   for r in safe[:7]]
         full = "\n\n---\n\n".join(bodies[:3])
-        a["path"] = "B-fallback"
-        a["summary"] = a["summary"] + f"\n\n--- Full notes (synth offline) ---\n\n{full}"
-        a["fallback_used"] = True
-        return a
+        return {"path": "B-fallback", "results": results,
+                "summary": full or "No relevant notes found.",
+                "match_count": len(results), "fallback_used": True}
 
     # Usage signal (reinforced retention)
     if sources:
