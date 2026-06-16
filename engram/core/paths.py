@@ -6,8 +6,10 @@ from pathlib import Path
 
 # PARA buckets within each project (Projects = time-bound, Areas = ongoing,
 # Resources = permanent knowledge). Each maps type -> "{PARA}/{type-folder}".
-# Sessions stay at the vault-root `sessoes/` (cross-cutting session state, not
-# PARA project knowledge). Archive is reserved for the deferred cold-storage tier.
+# NOTE: "session" has a location override in target_path() (vault-root
+# `sessoes/`), but its entry here is still used — moc.py derives the PARA
+# bucket per type from this mapping (single source of truth).
+# Archive is reserved for the deferred cold-storage tier.
 TYPE_FOLDERS = {
     # Resources/ — permanent knowledge
     "decision": "Resources/decisoes",

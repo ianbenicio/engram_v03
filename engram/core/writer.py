@@ -158,6 +158,11 @@ def vault_update(note_id: str, updates: dict, body: str | None,
         if inv:
             return {"status": "error", "reason": f"Invalid tags: {inv}"}
 
+    if "lifecycle" in updates:
+        lc_err = validator.validate_lifecycle(fm)
+        if lc_err:
+            return {"status": "error", "reason": lc_err}
+
     content_hash = indexer.compute_hash(new_body) if body is not None else row[1]
 
     if "related" in updates:
