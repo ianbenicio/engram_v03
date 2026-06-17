@@ -36,6 +36,7 @@ Register in Claude Code `.claude/settings.json` (see `claude-config-snippet.json
 ## CLI (token-free operations)
 
 ```bash
+engram save note.md                   # save a note (YAML frontmatter + body); '-' for stdin
 engram status                         # stats + hub notes
 engram reindex                        # incremental SQLite rebuild
 engram watch                          # auto-reindex on external edits
