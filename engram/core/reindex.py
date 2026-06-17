@@ -29,6 +29,14 @@ def reindex_file(conn: sqlite3.Connection, path: Path, config: Config) -> bool:
     row = conn.execute("SELECT content_hash FROM notes WHERE id = ?",
                        (fm["id"],)).fetchone()
     if row and row[0] == new_hash:
+        # Unchanged content, but backfill the embedding if it was never stored
+        # (note saved while Ollama was offline — embed_and_store skips silently,
+        # and the hash-skip would otherwise never recover it).
+        if not conn.execute("SELECT 1 FROM notes_vec WHERE note_id = ?",
+                            (fm["id"],)).fetchone():
+            embeddings.embed_and_store(
+                conn, fm["id"],
+                f"{fm.get('title','')}\n{fm.get('tldr','')}\n{body}", config)
         return False
     try:
         indexer.upsert_note(conn, fm, new_hash, str(path), body)

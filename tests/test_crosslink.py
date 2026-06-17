@@ -40,3 +40,11 @@ def test_below_threshold_not_grouped(db, config):
     _seed(db, "a", "engram", [1.0, 0.0, 0.0])
     _seed(db, "b", "nexa", [0.0, 1.0, 0.0])  # orthogonal -> cosine 0
     assert cross_project_report(db, config, threshold=0.9) == []
+
+def test_default_threshold_from_config(db, config):
+    # cosine([1,0,0],[0.8,0.6,0]) = 0.8: above config default 0.65, below old 0.85.
+    _seed(db, "a", "engram", [1.0, 0.0, 0.0])
+    _seed(db, "b", "nexa", [0.8, 0.6, 0.0])
+    rep = cross_project_report(db, config)  # no explicit threshold -> config 0.65
+    assert len(rep) == 1
+    assert cross_project_report(db, config, threshold=0.85) == []
