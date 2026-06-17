@@ -34,6 +34,7 @@ def test_defaults_present(monkeypatch, tmp_path):
     assert cfg.synth_model == "qwen3:7b"
     assert cfg.synth_timeout_seconds == 120
     assert cfg.keep_alive == "30m"
+    assert cfg.crosslink_threshold == 0.65
     assert "decision" in cfg.enabled_types
 
 

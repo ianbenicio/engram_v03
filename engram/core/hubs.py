@@ -5,6 +5,8 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
+import yaml
+
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)")
 
 
@@ -30,8 +32,28 @@ def hub_notes(conn: sqlite3.Connection, vault_root: Path, top: int = 5) -> list[
         p = Path(fpath)
         if not p.exists():
             continue
-        for target in WIKILINK_RE.findall(p.read_text(encoding="utf-8")):
-            t = target.strip()
+        text = p.read_text(encoding="utf-8")
+        targets: list = []
+        body = text
+        # Count structured frontmatter edges (related[]/instance_of) — most
+        # notes link via frontmatter ids, not body [[wikilinks]]. Scan the body
+        # separately so a related: ['[[x]]'] isn't double-counted.
+        if text.startswith("---"):
+            parts = text.split("---", 2)
+            if len(parts) >= 3:
+                try:
+                    fm = yaml.safe_load(parts[1]) or {}
+                except yaml.YAMLError:
+                    fm = {}
+                rel = fm.get("related") or []
+                if isinstance(rel, list):
+                    targets.extend(str(r) for r in rel)
+                if fm.get("instance_of"):
+                    targets.append(str(fm["instance_of"]))
+                body = parts[2]
+        targets.extend(WIKILINK_RE.findall(body))
+        for target in targets:
+            t = target.strip().strip("[]").split("|")[0].strip()
             if t in id_to_title:
                 inbound[t] += 1
             elif t.lower() in title_to_id:

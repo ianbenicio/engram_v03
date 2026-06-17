@@ -34,3 +34,16 @@ def test_reindex_all_counts(db, vault, config):
     stats = reindex_all(db, config)
     assert stats["indexed"] == 2
     assert stats["skipped"] == 0
+
+def test_reindex_backfills_missing_embedding(db, vault, config, monkeypatch):
+    # Regression: an unchanged note missing from notes_vec (saved while Ollama
+    # was offline) must get its embedding backfilled, not silently skipped.
+    p = _write_note(vault, "n1", "body one")
+    calls = []
+    monkeypatch.setattr("engram.core.reindex.embeddings.embed_and_store",
+                        lambda conn, nid, text, cfg: calls.append(nid) or True)
+    reindex_file(db, p, config)   # first index (monkeypatched embed writes nothing)
+    calls.clear()
+    # Second pass: hash unchanged AND still absent from notes_vec -> backfill.
+    assert reindex_file(db, p, config) is False
+    assert calls == ["n1"]

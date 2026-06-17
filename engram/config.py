@@ -37,6 +37,10 @@ class Config:
     # Keep Ollama models resident so repeat queries skip cold-load (~4s warm
     # vs ~58s cold). Passed to Ollama as `keep_alive`.
     keep_alive: str = "30m"
+    # Cosine threshold for the cross-project Canonical+Instances report. bge-m3
+    # cross-project similarity for related-but-distinct topics tops ~0.66, so
+    # the old 0.85 never fired. 0.65 surfaces genuine shared knowledge.
+    crosslink_threshold: float = 0.65
 
     @property
     def db_path(self) -> Path:
@@ -97,4 +101,5 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
         rerank=retrieval.get("rerank", False),
         synth_timeout_seconds=synthesis.get("timeout_seconds", 120),
         keep_alive=synthesis.get("keep_alive", "30m"),
+        crosslink_threshold=retrieval.get("crosslink_threshold", 0.65),
     )

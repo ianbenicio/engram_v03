@@ -52,9 +52,12 @@ def find_similar(conn: sqlite3.Connection, note_id: str,
 
 
 def cross_project_report(conn: sqlite3.Connection, config: Config,
-                         threshold: float = 0.85) -> list[dict]:
+                         threshold: float | None = None) -> list[dict]:
     """Group active notes from DIFFERENT projects whose embeddings are similar
-    (cosine >= threshold). Returns a comparative report, one entry per group."""
+    (cosine >= threshold). Returns a comparative report, one entry per group.
+    threshold defaults to config.crosslink_threshold (0.65) when not given."""
+    if threshold is None:
+        threshold = config.crosslink_threshold
     items = _active_embeddings(conn)
     n = len(items)
     parent = list(range(n))
