@@ -47,3 +47,25 @@ def test_reindex_backfills_missing_embedding(db, vault, config, monkeypatch):
     # Second pass: hash unchanged AND still absent from notes_vec -> backfill.
     assert reindex_file(db, p, config) is False
     assert calls == ["n1"]
+
+def test_reindex_all_reports_missing_embeddings(db, vault, config, monkeypatch):
+    monkeypatch.setattr("engram.core.reindex.embeddings.embed_and_store",
+                        lambda conn, nid, text, cfg: False)
+    _write_note(vault, "n1", "b1")
+    stats = reindex_all(db, config)
+    assert stats["missing_embeddings"] == 1
+
+def test_reindex_all_reembed_regenerates_every_vector(db, vault, config, monkeypatch):
+    from sqlite_vec import serialize_float32
+    calls = []
+    monkeypatch.setattr("engram.core.reindex.embeddings.embed_and_store",
+                        lambda conn, nid, text, cfg: calls.append(nid) or True)
+    _write_note(vault, "n1", "b1")
+    reindex_all(db, config)
+    db.execute("INSERT INTO notes_vec(note_id,embedding) VALUES ('n1',?)",
+               (serialize_float32([0.5] * 1024),)); db.commit()
+    calls.clear()
+    reindex_all(db, config)                # unchanged + has vector -> no call
+    assert calls == []
+    reindex_all(db, config, reembed=True)  # vectors dropped -> backfilled
+    assert calls == ["n1"]

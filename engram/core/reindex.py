@@ -46,7 +46,14 @@ def reindex_file(conn: sqlite3.Connection, path: Path, config: Config) -> bool:
     return True
 
 
-def reindex_all(conn: sqlite3.Connection, config: Config) -> dict:
+def reindex_all(conn: sqlite3.Connection, config: Config,
+                reembed: bool = False) -> dict:
+    """Index every note. `reembed` drops all stored vectors first so the
+    backfill regenerates them — needed after changing the embedding model or
+    endpoint, since old and new vectors are not comparable."""
+    if reembed:
+        conn.execute("DELETE FROM notes_vec")
+        conn.commit()
     indexed = skipped = 0
     for sub in ("projetos", "global", "sessoes"):
         base = config.vault_root / sub
@@ -59,4 +66,8 @@ def reindex_all(conn: sqlite3.Connection, config: Config) -> dict:
                 indexed += 1
             else:
                 skipped += 1
-    return {"indexed": indexed, "skipped": skipped}
+    missing = conn.execute(
+        "SELECT COUNT(*) FROM notes WHERE status NOT IN ('archived','draft') "
+        "AND id NOT IN (SELECT note_id FROM notes_vec)").fetchone()[0]
+    return {"indexed": indexed, "skipped": skipped,
+            "missing_embeddings": missing}

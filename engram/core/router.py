@@ -31,13 +31,19 @@ def has_semantic_intent(text: str) -> bool:
     return any(re.search(p, text, re.IGNORECASE) for p in SEMANTIC_PATTERNS)
 
 
-def fts_query(text: str) -> str:
+def fts_query(text: str, any_term: bool = False) -> str:
     """Build a safe FTS5 MATCH string: quote each whitespace-separated term so
     operator characters inside a term (-, :, *, parens, OR/AND/NEAR) are treated
     literally. Without this, a hyphenated tech term like 'claude-mem' or
     'qwen3-coder' makes FTS5 raise OperationalError ('no such column: ...'),
-    which callers swallow into an empty result — silent zero-hit queries."""
-    return " ".join('"' + t.replace('"', '""') + '"' for t in text.split())
+    which callers swallow into an empty result — silent zero-hit queries.
+
+    Default joins terms with implicit AND (precise keyword lookup). any_term=True
+    joins with OR and relies on bm25 ranking — used when a natural-language
+    query falls back from semantic search, where AND across every word of a
+    sentence almost always matches nothing."""
+    sep = " OR " if any_term else " "
+    return sep.join('"' + t.replace('"', '""') + '"' for t in text.split())
 
 
 def fts_count(text: str, project: str | None, conn: sqlite3.Connection) -> int:

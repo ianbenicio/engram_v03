@@ -82,3 +82,12 @@ def test_save_invalid_lifecycle_rejected(config, db):
     res = vault_save(n, "body invalid lc", config, db)
     assert res["status"] == "error"
     assert "nonsense" in res["reason"]
+
+def test_save_warns_when_embedding_not_stored(config, db, monkeypatch):
+    # A note saved while Ollama is down is invisible to semantic search; the
+    # save must say so instead of succeeding silently.
+    monkeypatch.setattr("engram.core.writer.embeddings.embed_and_store",
+                        lambda conn, nid, text, cfg: False)
+    res = vault_save(_note(), "Redis chosen for low latency.", config, db)
+    assert res["status"] == "ok"
+    assert any("Embedding not stored" in w for w in res["warnings"])

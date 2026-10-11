@@ -75,13 +75,16 @@ def save(
 
 
 @app.command()
-def reindex():
+def reindex(reembed: bool = typer.Option(
+        False, "--reembed",
+        help="Regenerate every embedding (after model/endpoint change).")):
     """Rebuild SQLite index (incremental, hash-skipped)."""
     from engram.core.reindex import reindex_all
     config, conn = _load()
-    stats = reindex_all(conn, config)
+    stats = reindex_all(conn, config, reembed=reembed)
     typer.echo(f"Reindex complete: {stats['indexed']} indexed, "
-               f"{stats['skipped']} skipped (unchanged).")
+               f"{stats['skipped']} skipped (unchanged), "
+               f"{stats['missing_embeddings']} active notes without embedding.")
 
 
 @app.command()

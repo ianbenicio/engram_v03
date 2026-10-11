@@ -38,3 +38,8 @@ def test_fts_query_quotes_each_term():
     assert fts_query("claude-mem token") == '"claude-mem" "token"'
     assert fts_query("radar") == '"radar"'
     assert fts_query("") == ""
+
+def test_fts_query_any_term_joins_with_or():
+    from engram.core.router import fts_query
+    assert fts_query("redis cache", any_term=True) == '"redis" OR "cache"'
+    assert fts_query("radar", any_term=True) == '"radar"'

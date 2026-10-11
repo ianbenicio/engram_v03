@@ -50,19 +50,24 @@ def _rerank_score(query_text: str, dist: float, title: str, tldr: str,
 
 
 def path_a(query: QueryRequest, conn: sqlite3.Connection,
-           config: Config | None = None) -> dict:
+           config: Config | None = None, any_term: bool = False,
+           log_path: str = "A") -> dict:
     """Lightweight FTS5 read path.
 
     When `config` is provided and `config.recency_weight > 0`, candidates are
     over-fetched (limit*3), re-scored by a blend of normalized FTS rank and a
     recency factor, then trimmed to `query.limit`. With `config=None` or
     `recency_weight == 0`, behavior is pure FTS rank order (backward-compatible).
+
+    `any_term` matches notes containing any query term (see router.fts_query);
+    `log_path` is the path recorded in the usage log, so fallbacks from path B
+    are distinguishable from genuine path A reads.
     """
     recency_weight = config.recency_weight if config else 0.0
     halflife = config.recency_halflife_days if config else 90
     use_recency = recency_weight > 0
 
-    safe = router.fts_query(query.text)
+    safe = router.fts_query(query.text, any_term=any_term)
     sql = (
         "SELECT n.id,n.type,n.title,n.tldr,n.status,n.project,n.updated,"
         "n.confidence, f.rank FROM notes_fts f JOIN notes n ON f.note_id = n.id "
@@ -115,7 +120,7 @@ def path_a(query: QueryRequest, conn: sqlite3.Connection,
     if config and results:
         try:
             usage.log_retrieval(config.activity_log,
-                                [r["id"] for r in results], "A")
+                                [r["id"] for r in results], log_path)
         except OSError:
             pass
 
@@ -138,10 +143,14 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
            config: Config) -> dict:
     try:
         qvec = embeddings.get_embedding(query.text, config)
-    except EmbeddingUnavailable:
-        res = path_a(query, conn, config)
+    except EmbeddingUnavailable as e:
+        # Semantic search unavailable: lexical search with OR (a sentence
+        # ANDed word-by-word matches nothing) and report why, so a broken
+        # embedding backend is visible instead of silently degrading.
+        res = path_a(query, conn, config, any_term=True, log_path="B-fallback")
         res["path"] = "B-fallback"
         res["fallback_used"] = True
+        res["fallback_reason"] = f"embedding unavailable: {e}"
         return res
 
     knn_k = max(query.limit, 20) if config.rerank else max(query.limit, 7)
@@ -185,7 +194,7 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
 
     try:
         synthesis = embeddings.synthesize(query.text, combined, config)
-    except EmbeddingUnavailable:
+    except EmbeddingUnavailable as e:
         # Synthesis (LLM) offline but vector retrieval succeeded: return the
         # KNN-matched notes raw instead of re-running FTS, which often matches
         # nothing for a natural-language query and would mislead with
@@ -197,7 +206,8 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
         full = "\n\n---\n\n".join(bodies[:3])
         return {"path": "B-fallback", "results": results,
                 "summary": full or "No relevant notes found.",
-                "match_count": len(results), "fallback_used": True}
+                "match_count": len(results), "fallback_used": True,
+                "fallback_reason": f"synthesis unavailable: {e}"}
 
     # Usage signal (reinforced retention)
     if sources:

@@ -9,18 +9,31 @@ class EmbeddingUnavailable(RuntimeError):
     pass
 
 
+def _error_detail(resp) -> str:
+    """Ollama's error message from a non-200 response, so callers can surface
+    the real cause (e.g. a crashed runner) instead of a bare status code."""
+    try:
+        return str(resp.json().get("error", ""))[:300]
+    except ValueError:
+        return ""
+
+
 def get_embedding(text: str, config: Config) -> list[float]:
+    # /api/embed (not the legacy /api/embeddings): truncates input to the
+    # model context instead of failing with HTTP 500 on long notes, and
+    # returns L2-normalized vectors.
     try:
         resp = httpx.post(
-            f"{config.ollama_endpoint}/api/embeddings",
-            json={"model": config.embed_model, "prompt": text,
-                  "keep_alive": config.keep_alive},
+            f"{config.ollama_endpoint}/api/embed",
+            json={"model": config.embed_model, "input": text,
+                  "truncate": True, "keep_alive": config.keep_alive},
             timeout=30,
         )
         if resp.status_code == 200:
-            return resp.json()["embedding"]
-        raise EmbeddingUnavailable(f"Ollama status {resp.status_code}")
-    except (httpx.ConnectError, httpx.TimeoutException) as e:
+            return resp.json()["embeddings"][0]
+        raise EmbeddingUnavailable(
+            f"Ollama status {resp.status_code}: {_error_detail(resp)}")
+    except httpx.HTTPError as e:
         raise EmbeddingUnavailable(str(e)) from e
 
 
@@ -60,6 +73,7 @@ def synthesize(query: str, context: str, config: Config) -> str:
         )
         if resp.status_code == 200:
             return resp.json()["response"]
-        raise EmbeddingUnavailable(f"Ollama status {resp.status_code}")
-    except (httpx.ConnectError, httpx.TimeoutException) as e:
+        raise EmbeddingUnavailable(
+            f"Ollama status {resp.status_code}: {_error_detail(resp)}")
+    except httpx.HTTPError as e:
         raise EmbeddingUnavailable(str(e)) from e

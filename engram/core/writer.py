@@ -100,6 +100,10 @@ def vault_save(note: NoteData, body: str, config: Config,
     # so the writer can link them (related[]/instance_of) and contextualize
     # each distinct use of the same element.
     similar: list[dict] = []
+    if not embedded:
+        warnings.append(
+            "Embedding not stored (Ollama unavailable): note is only "
+            "reachable by keyword search until `engram reindex` runs.")
     if embedded:
         try:
             from engram.core.crosslink import find_similar

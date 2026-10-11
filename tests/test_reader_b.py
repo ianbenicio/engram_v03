@@ -66,3 +66,39 @@ def test_path_b_excludes_restricted(db, vault, config, monkeypatch):
     res = path_b(QueryRequest(text="redis"), db, config)
     assert res.get("restricted_omitted", 0) == 1
     assert "Redis chosen" not in captured.get("ctx", "")
+
+def test_path_b_embedding_offline_reports_reason_and_matches_any_term(
+        db, vault, config, monkeypatch):
+    # Regression (D7): a natural-language query fell back to FTS with implicit
+    # AND across every word -> zero hits, and the cause was never reported.
+    _seed_vec(db, vault, [0.5] * 1024)
+    db.execute("INSERT INTO notes_fts (note_id,title,tldr,tags_text,body_snippet)"
+               " VALUES ('n1','Redis','cache','','redis cache')"); db.commit()
+    def boom(t, c): raise EmbeddingUnavailable("Ollama status 500: CUDA error")
+    monkeypatch.setattr("engram.core.reader.embeddings.get_embedding", boom)
+    res = path_b(QueryRequest(text="why did we choose redis for this"), db, config)
+    assert res["path"] == "B-fallback"
+    assert res["match_count"] == 1
+    assert "CUDA error" in res["fallback_reason"]
+
+def test_path_b_embedding_offline_logs_fallback_path(db, vault, config, monkeypatch):
+    _seed_vec(db, vault, [0.5] * 1024)
+    db.execute("INSERT INTO notes_fts (note_id,title,tldr,tags_text,body_snippet)"
+               " VALUES ('n1','Redis','cache','','redis cache')"); db.commit()
+    def boom(t, c): raise EmbeddingUnavailable("offline")
+    monkeypatch.setattr("engram.core.reader.embeddings.get_embedding", boom)
+    logged = []
+    monkeypatch.setattr("engram.core.reader.usage.log_retrieval",
+                        lambda log, ids, path: logged.append(path))
+    path_b(QueryRequest(text="redis"), db, config)
+    assert logged == ["B-fallback"]
+
+def test_path_b_synth_offline_reports_reason(db, vault, config, monkeypatch):
+    vec = [0.5] * 1024
+    _seed_vec(db, vault, vec)
+    monkeypatch.setattr("engram.core.reader.embeddings.get_embedding",
+                        lambda t, c: vec)
+    def boom(q, ctx, c): raise EmbeddingUnavailable("timed out")
+    monkeypatch.setattr("engram.core.reader.embeddings.synthesize", boom)
+    res = path_b(QueryRequest(text="redis"), db, config)
+    assert res["fallback_reason"] == "synthesis unavailable: timed out"
