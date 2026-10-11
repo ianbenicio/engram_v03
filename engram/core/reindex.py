@@ -8,6 +8,7 @@ import yaml
 from engram.config import Config
 from engram.core import indexer
 from engram.core import embeddings
+from engram.core.health import count_missing_embeddings
 
 
 def _parse(path: Path) -> tuple[dict, str]:
@@ -66,8 +67,5 @@ def reindex_all(conn: sqlite3.Connection, config: Config,
                 indexed += 1
             else:
                 skipped += 1
-    missing = conn.execute(
-        "SELECT COUNT(*) FROM notes WHERE status NOT IN ('archived','draft') "
-        "AND id NOT IN (SELECT note_id FROM notes_vec)").fetchone()[0]
     return {"indexed": indexed, "skipped": skipped,
-            "missing_embeddings": missing}
+            "missing_embeddings": count_missing_embeddings(conn)}

@@ -5,7 +5,7 @@ from mcp.server.fastmcp import FastMCP
 from engram.config import load_config
 from engram.core.db import connect, init_schema
 from engram.core.rate_limit import RateLimiter
-from engram.core import reader, router, hubs, handoff
+from engram.core import reader, router, hubs, handoff, health
 from engram.core.writer import vault_save, vault_update
 from engram.models import NoteData, QueryRequest
 
@@ -72,6 +72,7 @@ def _status_impl() -> dict:
         return blocked
     st = hubs.vault_status(_CONN, _CONFIG.activity_log)
     st["hubs"] = hubs.hub_notes(_CONN, _CONFIG.vault_root, top=5)
+    st["missing_embeddings"] = health.count_missing_embeddings(_CONN)
     return st
 
 
