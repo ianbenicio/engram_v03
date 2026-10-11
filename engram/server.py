@@ -98,15 +98,18 @@ def vault_query_tool(query: QueryRequest) -> dict:
     """Query the vault (router auto-selects lightweight vs heavy).
 
     Fields: text (required), project, projects, tags, type_filter,
-    status_filter, depth ('deep' forces semantic), limit (default 10)."""
+    status_filter, depth ('deep' forces semantic), limit (default 10),
+    synthesize (deep only; default from [synthesis] enabled)."""
     return _query_impl(query.model_dump(exclude_none=True))
 
 
 @mcp.tool()
 def vault_deep_query_tool(query: QueryRequest) -> dict:
-    """Force a heavy semantic query (embeddings + synthesis).
+    """Force a heavy semantic query (embeddings + optional local synthesis).
 
-    Fields: text (required), project, projects, limit (default 10)."""
+    Fields: text (required), project, projects, limit (default 10),
+    synthesize (default from [synthesis] enabled; false returns tldr +
+    excerpt of each source)."""
     return _deep_query_impl(query.model_dump(exclude_none=True))
 
 

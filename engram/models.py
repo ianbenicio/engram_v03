@@ -63,3 +63,4 @@ class QueryRequest(BaseModel):
     depth: str | None = None  # "shallow" | "deep" | None
     include_cold: bool = False
     limit: int = 10
+    synthesize: bool | None = None  # None: follow [synthesis] enabled

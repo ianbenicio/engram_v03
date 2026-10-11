@@ -102,3 +102,59 @@ def test_path_b_synth_offline_reports_reason(db, vault, config, monkeypatch):
     monkeypatch.setattr("engram.core.reader.embeddings.synthesize", boom)
     res = path_b(QueryRequest(text="redis"), db, config)
     assert res["fallback_reason"] == "synthesis unavailable: timed out"
+
+
+def _no_synth(monkeypatch, vec):
+    calls = []
+    monkeypatch.setattr("engram.core.reader.embeddings.get_embedding",
+                        lambda t, c: vec)
+    monkeypatch.setattr("engram.core.reader.embeddings.synthesize",
+                        lambda q, ctx, c: calls.append(q) or "SYNTH OK")
+    return calls
+
+
+def test_path_b_synthesis_disabled_returns_tldr_and_excerpt(
+        db, vault, config, monkeypatch):
+    vec = [0.5] * 1024
+    _seed_vec(db, vault, vec)
+    calls = _no_synth(monkeypatch, vec)
+    config.synthesis_enabled = False
+    res = path_b(QueryRequest(text="redis"), db, config)
+    assert calls == []
+    assert res["path"] == "B" and res["fallback_used"] is False
+    assert res["synthesis_skipped"] is True
+    assert "synthesis" not in res
+    src = res["sources"][0]
+    assert src["id"] == "n1" and src["tldr"] == "cache"
+    assert src["excerpt"].startswith("Redis chosen for low-latency")
+
+
+def test_path_b_excerpt_is_capped(db, vault, config, monkeypatch):
+    from engram.core.reader import EXCERPT_CHARS
+    vec = [0.5] * 1024
+    _seed_vec(db, vault, vec)
+    (vault / "n1.md").write_text("---\nid: n1\n---\n\n" + "x" * 2000,
+                                 encoding="utf-8")
+    _no_synth(monkeypatch, vec)
+    config.synthesis_enabled = False
+    res = path_b(QueryRequest(text="redis"), db, config)
+    assert len(res["sources"][0]["excerpt"]) == EXCERPT_CHARS
+
+
+def test_path_b_synthesize_on_request_overrides_disabled_config(
+        db, vault, config, monkeypatch):
+    vec = [0.5] * 1024
+    _seed_vec(db, vault, vec)
+    calls = _no_synth(monkeypatch, vec)
+    config.synthesis_enabled = False
+    res = path_b(QueryRequest(text="redis", synthesize=True), db, config)
+    assert calls == ["redis"] and res["synthesis"] == "SYNTH OK"
+
+
+def test_path_b_synthesize_false_overrides_enabled_config(
+        db, vault, config, monkeypatch):
+    vec = [0.5] * 1024
+    _seed_vec(db, vault, vec)
+    calls = _no_synth(monkeypatch, vec)
+    res = path_b(QueryRequest(text="redis", synthesize=False), db, config)
+    assert calls == [] and res["synthesis_skipped"] is True

@@ -49,3 +49,11 @@ def test_synthesis_tuning_from_toml(tmp_path):
     assert cfg.synth_model == "qwen2.5-coder:7b"
     assert cfg.synth_timeout_seconds == 200
     assert cfg.keep_alive == "1h"
+
+def test_synthesis_enabled_defaults_true_and_reads_toml(tmp_path):
+    assert load_config(config_path=tmp_path / "missing.toml",
+                       home=tmp_path).synthesis_enabled is True
+    toml = tmp_path / "engram.toml"
+    toml.write_text('[vault]\nroot = "%s"\n[synthesis]\nenabled = false\n'
+                    % (tmp_path / "v").as_posix())
+    assert load_config(config_path=toml, home=tmp_path).synthesis_enabled is False

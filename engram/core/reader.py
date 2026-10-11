@@ -128,6 +128,19 @@ def path_a(query: QueryRequest, conn: sqlite3.Connection,
             "match_count": len(results)}
 
 
+EXCERPT_CHARS = 300
+
+
+def _log_usage(config: Config, sources: list[dict]) -> None:
+    # Usage signal (reinforced retention)
+    if sources:
+        try:
+            usage.log_retrieval(config.activity_log,
+                                [s["id"] for s in sources], "B")
+        except OSError:
+            pass
+
+
 def _read_body(file_path: str) -> str:
     p = Path(file_path)
     if not p.exists():
@@ -180,7 +193,7 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
             reverse=True,
         )
 
-    bodies, sources = [], []
+    bodies, sources, briefs = [], [], []
     for row in safe[:7]:
         note_id, dist, title, ntype, conf, fpath = (
             row[0], row[1], row[2], row[3], row[4], row[5])
@@ -190,7 +203,22 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
         body = _read_body(fpath)
         if body:
             bodies.append(f"## [{ntype}|{conf}] {title}\n{body}")
+        briefs.append({**sources[-1], "tldr": row[7],
+                       "excerpt": body[:EXCERPT_CHARS]})
     combined = "\n\n".join(bodies)
+
+    want_synthesis = (query.synthesize if query.synthesize is not None
+                      else config.synthesis_enabled)
+    if not want_synthesis:
+        # Measured 2026-10-11: local synthesis took 44-63s and missed the
+        # query's focus in 4 of 4 real queries; tldr + excerpt of every source
+        # costs ~1.3k tokens and lets the caller synthesize.
+        _log_usage(config, sources)
+        result = {"path": "B", "sources": briefs, "fallback_used": False,
+                  "synthesis_skipped": True}
+        if restricted:
+            result["restricted_omitted"] = restricted
+        return result
 
     try:
         synthesis = embeddings.synthesize(query.text, combined, config)
@@ -209,14 +237,7 @@ def path_b(query: QueryRequest, conn: sqlite3.Connection,
                 "match_count": len(results), "fallback_used": True,
                 "fallback_reason": f"synthesis unavailable: {e}"}
 
-    # Usage signal (reinforced retention)
-    if sources:
-        try:
-            usage.log_retrieval(config.activity_log,
-                                [s["id"] for s in sources], "B")
-        except OSError:
-            pass
-
+    _log_usage(config, sources)
     result = {"path": "B", "synthesis": synthesis, "sources": sources,
               "fallback_used": False}
     if restricted:

@@ -34,6 +34,10 @@ class Config:
     # Synthesis model cold-load (e.g. qwen3-coder) can exceed 50s on first
     # call; the old 30s timeout spuriously failed every first semantic query.
     synth_timeout_seconds: int = 120
+    # [synthesis] enabled = false makes deep queries return tldr + excerpt of
+    # each source instead of a local-LLM synthesis (a query can still ask for
+    # one with synthesize=true).
+    synthesis_enabled: bool = True
     # Keep Ollama models resident so repeat queries skip cold-load (~4s warm
     # vs ~58s cold). Passed to Ollama as `keep_alive`.
     keep_alive: str = "30m"
@@ -100,6 +104,7 @@ def load_config(config_path: Path | None = None, home: Path | None = None) -> Co
         recency_halflife_days=retrieval.get("recency_halflife_days", 90),
         rerank=retrieval.get("rerank", False),
         synth_timeout_seconds=synthesis.get("timeout_seconds", 120),
+        synthesis_enabled=synthesis.get("enabled", True),
         keep_alive=synthesis.get("keep_alive", "30m"),
         crosslink_threshold=retrieval.get("crosslink_threshold", 0.65),
     )
